@@ -4,7 +4,7 @@ import http from "http";
 import { WebSocketServer } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
-
+import cors from "cors";
 import { checkLogin, addOnlineUser, removeOnlineUser, onlineUsers } from "./users.js";
 import { joinRoom, broadcastToRoom } from "./room.js";
 
@@ -16,10 +16,14 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+// ✅ CORS fix - Render ke liye
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST"]
+}));
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../frontend")));
-
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../frontend/login.html"));
@@ -47,7 +51,6 @@ function broadcastOnlineUsers() {
 
 // --- WEBSOCKET ---
 wss.on("connection", (ws) => {
-
   ws.on("message", (data) => {
     const msg = JSON.parse(data);
 
@@ -56,13 +59,12 @@ wss.on("connection", (ws) => {
       addOnlineUser(msg.username, ws);
       ws.username = msg.username;
       ws.send(JSON.stringify({ type: "login_success" }));
-      broadcastOnlineUsers(); // update online users
+      broadcastOnlineUsers();
     }
 
     // Join Room
     if (msg.type === "join_room") {
       joinRoom(msg.username, msg.room);
-
       broadcastToRoom(msg.room, {
         type: "system",
         message: `${msg.username} joined the room`
@@ -76,7 +78,7 @@ wss.on("connection", (ws) => {
         const targetWs = onlineUsers[msg.to];
         if (targetWs && targetWs.readyState === targetWs.OPEN) {
           targetWs.send(JSON.stringify({ type: "chat", from: msg.username, text: msg.text }));
-          ws.send(JSON.stringify({ type: "chat", from: msg.username, text: msg.text })); // echo to sender
+          ws.send(JSON.stringify({ type: "chat", from: msg.username, text: msg.text }));
         } else {
           ws.send(JSON.stringify({ type: "error", message: "User offline" }));
         }
@@ -97,12 +99,13 @@ wss.on("connection", (ws) => {
   ws.on("close", () => {
     if (ws.username) {
       removeOnlineUser(ws.username);
-      broadcastOnlineUsers(); // update online users
+      broadcastOnlineUsers();
     }
   });
-
 });
 
-server.listen(3000, () => {
-  console.log("Server running on http://localhost:3000");
+// ✅ PORT fix - Render apna port deta hai environment variable mein
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
