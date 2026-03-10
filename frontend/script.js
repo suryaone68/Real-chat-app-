@@ -1,15 +1,12 @@
-
 if(document.getElementById("loginBtn")){
   document.getElementById("loginBtn").onclick = async () => {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
-
-    const res = await fetch("/https://real-time-chat-app-1-4ofv.onrender.com/", {
+    const res = await fetch("https://real-time-chat-app-1-4ofv.onrender.com/login", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ username, password })
     });
-
     if(res.ok){
       localStorage.setItem("username", username);
       window.location.href = "chat.html";
@@ -20,12 +17,10 @@ if(document.getElementById("loginBtn")){
   };
 }
 
-
 if(document.getElementById("sendBtn")){
   const username = localStorage.getItem("username");
   document.getElementById("user").innerText = username;
-
-  const ws = new WebSocket("ws://localhost:3000");
+  const ws = new WebSocket("wss://real-time-chat-app-1-4ofv.onrender.com");
   let currentRoom = null;
   let currentChatUser = null;
 
@@ -33,8 +28,6 @@ if(document.getElementById("sendBtn")){
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
-
-
     if(data.type === "online_users"){
       const onlineList = document.getElementById("onlineList");
       onlineList.innerHTML = "";
@@ -53,31 +46,24 @@ if(document.getElementById("sendBtn")){
         }
       });
     }
-
     else if(data.type === "system" || data.type === "message"){
       const chatBox = document.getElementById("chatBox");
       chatBox.innerHTML += `<p>${data.type === "system" ? "[SYSTEM]" : data.username}: ${data.message || data.text}</p>`;
       chatBox.scrollTop = chatBox.scrollHeight;
     }
-
-    // One-to-one chat
     else if(data.type === "chat"){
       const chatBox = document.getElementById("chatBox");
       chatBox.innerHTML += `<p>${data.from}: ${data.text}</p>`;
       chatBox.scrollTop = chatBox.scrollHeight;
     }
-
-    // Error messages
     else if(data.type === "error"){
       alert(data.message);
     }
   };
 
-  // Join room
   document.getElementById("joinBtn").onclick = () => {
     const room = document.getElementById("roomName").value;
     if(!room) return alert("Enter room name");
-
     currentRoom = room;
     currentChatUser = null;
     document.getElementById("currentRoom").innerText = room;
@@ -85,11 +71,9 @@ if(document.getElementById("sendBtn")){
     document.getElementById("chatBox").innerHTML = "";
   };
 
-  // Send message
   document.getElementById("sendBtn").onclick = () => {
     const text = document.getElementById("message").value;
     if(!text) return;
-
     if(currentChatUser){
       ws.send(JSON.stringify({ type: "message", username, to: currentChatUser, text }));
     } else if(currentRoom){
@@ -97,7 +81,6 @@ if(document.getElementById("sendBtn")){
     } else {
       alert("Join a room or select a user first");
     }
-
     document.getElementById("message").value = "";
   };
 }
